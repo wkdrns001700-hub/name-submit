@@ -18,13 +18,13 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">한글 이름</label>
                 <input type="text" id="koreanName" required
                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="예: 박호영">
+                    placeholder="예: 홍길동">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">영문 이름</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">영문 이름 (이름 성 순서)</label>
                 <input type="text" id="englishName" required
                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="예: Park Hoyoung">
+                    placeholder="예: HONG GILDONG">
             </div>
             <button type="submit"
                 class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200 font-medium">
@@ -37,7 +37,14 @@
 
     <!-- 제출된 명단 박스 -->
     <div class="bg-white shadow-md rounded-lg p-5 w-full max-w-md mt-6">
-        <h2 class="text-lg font-bold text-gray-800 mb-3">제출된 명단 (<span id="count">0</span>명)</h2>
+        <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-bold text-gray-800">제출된 명단 (<span id="count">0</span>명)</h2>
+            <!-- 엑셀 다운로드 버튼 (관리자 전용) -->
+            <button id="downloadBtn"
+                class="text-xs bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 transition font-medium">
+                엑셀로 다운로드
+            </button>
+        </div>
         <div class="max-h-60 overflow-y-auto border border-gray-200 rounded-md p-2">
             <ul id="nameList" class="space-y-1 text-sm text-gray-600">
                 <!-- 데이터가 실시간으로 이곳에 표시됩니다 -->
@@ -70,6 +77,9 @@
         const statusMessage = document.getElementById('statusMessage');
         const nameList = document.getElementById('nameList');
         const countSpan = document.getElementById('count');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        let allData = {}; // 다운로드를 위해 데이터를 전역으로 저장
 
         // 데이터 제출 이벤트 리스너
         form.addEventListener('submit', (e) => {
@@ -99,11 +109,12 @@
         onValue(namesRef, (snapshot) => {
             nameList.innerHTML = '';
             let count = 0;
+            allData = {}; // 데이터 초기화 후 갱신
 
             if (snapshot.exists()) {
-                const data = snapshot.val();
-                Object.keys(data).forEach((key) => {
-                    const item = data[key];
+                allData = snapshot.val();
+                Object.keys(allData).forEach((key) => {
+                    const item = allData[key];
                     count++;
 
                     const li = document.createElement('li');
@@ -141,6 +152,39 @@
             }
             countSpan.textContent = count;
         });
+
+        // 엑셀 다운로드 (비밀번호 보호)
+        downloadBtn.onclick = () => {
+            const password = prompt("관리자 비밀번호를 입력하세요:");
+            if (password === "0000") {
+                if (Object.keys(allData).length === 0) {
+                    alert("다운로드할 데이터가 없습니다.");
+                    return;
+                }
+
+                // CSV 형식으로 데이터 변환 (엑셀에서 바로 열림)
+                let csvContent = "\uFEFFno,koreanName,englishName\n"; // 한글 깨짐 방지 BOM 추가
+                let index = 1;
+                Object.keys(allData).forEach((key) => {
+                    const item = allData[key];
+                    csvContent += `${index},"${item.koreanName}","${item.englishName}"\n`;
+                    index++;
+                });
+
+                // 파일 다운로드 실행
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'names_list.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } else if (password !== null) {
+                alert("비밀번호가 틀렸습니다.");
+            }
+        };
     </script>
 </body>
 </html>
